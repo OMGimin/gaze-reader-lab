@@ -16,6 +16,7 @@ final class ReaderModel: NSObject, ObservableObject, WKNavigationDelegate, WKUID
     private var groups = Array(repeating: [Double](), count: 6)
     private var settledAt: Double?
     private var baseline: simd_float4x4?
+    private var calibratedFace: UUID?
     private var calibration: VerticalCalibration?
     private var gate = DwellGate()
     private var lastSample: Double?
@@ -48,7 +49,7 @@ final class ReaderModel: NSObject, ObservableObject, WKNavigationDelegate, WKUID
         webView.load(URLRequest(url: url))
     }
     func invalidate(_ reason: String) {
-        pause(reason); calibration = nil; calibrated = false; baseline = nil
+        pause(reason); calibration = nil; calibrated = false; baseline = nil; calibratedFace = nil
         collecting = false; target = nil; settledAt = nil
         groups = Array(repeating: [], count: 6)
     }
@@ -79,6 +80,9 @@ final class ReaderModel: NSObject, ObservableObject, WKNavigationDelegate, WKUID
             return
         }
         lastSample = ProcessInfo.processInfo.systemUptime
+        if let calibratedFace, calibratedFace != sample.faceID {
+            invalidate("추적 대상이 바뀌었습니다 · 다시 보정하세요"); return
+        }
         if let base = baseline {
             let offset = simd_distance(base.columns.3, sample.head.columns.3)
             let dot = abs(simd_dot(simd_quatf(base).vector, simd_quatf(sample.head).vector))
@@ -87,7 +91,7 @@ final class ReaderModel: NSObject, ObservableObject, WKNavigationDelegate, WKUID
             }
         }
         if collecting {
-            if baseline == nil { baseline = sample.head }
+            if baseline == nil { baseline = sample.head; calibratedFace = sample.faceID }
             if settledAt == nil { settledAt = sample.time; message = "\(step < 3 ? "보정" : "별도 검증") \(step % 3 + 1)/3 · 점 응시" }
             guard sample.time - (settledAt ?? sample.time) >= 1.2 else { return }
             groups[step].append(sample.signal)

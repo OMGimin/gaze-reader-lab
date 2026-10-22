@@ -87,3 +87,7 @@ npm start
 손을 완전히 쓰지 못하는 사용자를 위한 검증된 접근성 도구는 아닙니다. 첫 시작·보정·재개에 버튼 조작이 필요합니다. 화면 응시 좌표는 경험적 보정 추정값이며, 조명·안경·눈의 형태·자세·외부 모니터·웹캠 위치에 따라 작동하지 않을 수 있습니다. 실제 사용자 평가 전에는 읽기 정확도나 오작동률을 주장할 수 없습니다.
 
 원본 코드는 [MIT License](LICENSE)입니다. 제3자 구성요소는 각자의 라이선스를 따릅니다. 이 저장소 공개는 웹 서비스 배포나 카메라 데이터 공개를 포함하지 않습니다.
+
+## iPhone 14 Pro native work (separate experimental target)
+
+The `feature/iphone14pro-reader` branch adds an independent native ARKit + WKWebView app under [`ios/`](ios/README.md). It is not a Chrome-extension installation and does not control the Naver native app. Xcode build, signing, installation and physical-device verification are pending. See [`ios/VALIDATION.md`](ios/VALIDATION.md) for exact tested and untested boundaries. iPad support is postponed.

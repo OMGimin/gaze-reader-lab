@@ -1,0 +1,10 @@
+{
+  "manifest_version":3,
+  "name":"Gaze Reader Lab — 로컬 시선 스크롤",
+  "version":"0.1.0",
+  "description":"사용자가 선택한 네이버 웹툰 회차 / 로컬 테스트 페이지에서 한 구간씩 시선 스크롤합니다.",
+  "permissions":["activeTab","scripting"],
+  "action":{"default_title":"이 페이지에 시선 도우미 열기"},
+  "background":{"service_worker":"background.js"},
+  "content_security_policy":{"extension_pages":"script-src 'self' 'wasm-unsafe-eval'; object-src 'none'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; media-src 'self' blob:;"}
+}

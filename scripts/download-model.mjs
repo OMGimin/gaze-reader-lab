@@ -1,0 +1,11 @@
+import {mkdir,writeFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+const url='https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
+const response=await fetch(url,{signal:AbortSignal.timeout(60000)});
+if(!response.ok)throw new Error(`Model download failed: ${response.status}`);
+const bytes=Buffer.from(await response.arrayBuffer());
+const sha256=createHash('sha256').update(bytes).digest('hex');
+if(sha256!=='64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff')throw new Error('Model checksum mismatch');
+await mkdir('vendor',{recursive:true});
+await writeFile('vendor/face_landmarker.task',bytes);
+console.log(JSON.stringify({url,bytes:bytes.length,sha256:createHash('sha256').update(bytes).digest('hex')}));

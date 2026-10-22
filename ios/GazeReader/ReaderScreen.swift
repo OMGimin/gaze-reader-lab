@@ -35,7 +35,7 @@ struct ReaderScreen: View {
                     .textFieldStyle(.roundedBorder).focused($editing)
                     .onSubmit { editing = false; model.open() }
                 Button("열기") { editing = false; model.open() }
-                Button { model.pause(); privacy = true } label: { Image(systemName: "info.circle") }
+                Button { model.tracker.stop(); privacy = true } label: { Image(systemName: "info.circle") }
                     .accessibilityLabel("이용 안내와 개인정보 처리방침")
             }
             CameraControls(tracker: model.tracker)

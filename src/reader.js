@@ -1,3 +1,4 @@
+import { formatCalibrationSummary } from './diagnostics.js';
 import { IntentGate, fitCalibration, predict, validateCalibration, poseMatches, summarizePoint } from './core.js';
 const TRAIN=[{x:.5,y:.5},{x:.1,y:.08},{x:.9,y:.92},{x:.9,y:.08},{x:.1,y:.92},{x:.5,y:.08},{x:.1,y:.5},{x:.5,y:.92},{x:.9,y:.5}];
 const CHECK=[{x:.5,y:.09},{x:.5,y:.5},{x:.5,y:.91},{x:.25,y:.5},{x:.75,y:.5}];
@@ -28,12 +29,12 @@ export function createReader({demo=false,onClose=()=>{},onCamera=()=>{},onMode=(
     <div class="row"><button id="calibrate">시선 보정</button><button id="undo">되돌리기</button></div>
     <div class="row"><button id="camera">${demo?'카메라 직접 시작':'카메라 창 안내'}</button><label class="small"><input id="show-dot" type="checkbox"> 추정점 표시</label></div>
     <p class="small">추적 실패·창 전환·수동 스크롤 시 정지.<br>머리 위치나 창 크기가 바뀌면 다시 보정하세요.</p>
-    <details class="diagnostics" id="diagnostics" hidden><summary>보정 진단 · 이 창에서만</summary><p id="diagnostic-text"></p><table><thead><tr><th>확인점</th><th>표본</th><th>평균/최대</th><th>영역 일치</th></tr></thead><tbody id="diagnostic-points"></tbody></table><p>영상·눈 특징 저장 없음. 창을 닫으면 진단도 사라집니다.</p></details>
+    <details class="diagnostics" id="diagnostics" hidden><summary>보정 진단 · 이 창에서만</summary><p id="diagnostic-text"></p><table><thead><tr><th>확인점</th><th>표본</th><th>평균/최대</th><th>영역 일치</th></tr></thead><tbody id="diagnostic-points"></tbody></table><p>영상·눈 특징 저장 없음. 창을 닫으면 진단도 사라집니다.</p><button id="copy-diagnostics">진단 요약 복사</button><p id="copy-status" aria-live="polite"></p><textarea id="diagnostic-copy" aria-label="진단 요약 텍스트" readonly hidden style="width:100%;height:120px"></textarea><p>복사에는 점별 오차·표본 수만 포함됩니다. 자동 전송하지 않습니다.</p></details>
     ${demo?'<div class="mock"><button id="mock-toggle">모의 입력 켜기</button><button id="mock-lost">추적 실패</button><p>카메라 정확도를 재현하지 않는 UX 테스트입니다.</p></div>':''}
   </section>
   <section class="calibration" aria-label="시선 보정 화면"><div class="instruction"><h2 id="cal-title">보정</h2><p id="cal-text">점을 눈으로 따라가세요. 머리는 움직이지 마세요.</p><p id="cal-quality"></p><button id="retry-point" hidden>이 점 다시 측정</button> <button id="cancel-cal">보정 취소 · Esc</button></div><div class="caldot"></div></section>`;
   const $=s=>root.querySelector(s), gate=new IntentGate();
-  let model=null,baseline=null,cal=null,lastSample=null,lastReceived=0,smooth=null,previousScroll=null,mock=false,closed=false;
+  let diagnosticSummary='',model=null,baseline=null,cal=null,lastSample=null,lastReceived=0,smooth=null,previousScroll=null,mock=false,closed=false;
   let pointer={x:.5,y:.5},source='camera',lastHref=location.href,lastWindow=[window.screenX,window.screenY,window.devicePixelRatio];
   const listeners=[];
   function listen(target,name,fn,options) {target.addEventListener(name,fn,options);listeners.push(()=>target.removeEventListener(name,fn,options));}
@@ -70,7 +71,7 @@ export function createReader({demo=false,onClose=()=>{},onCamera=()=>{},onMode=(
     if(!lastSample?.valid||performance.now()-lastReceived>300){status('유효한 카메라 입력이 없습니다. 카메라 창에서 먼저 시작하세요.');return;}
     pause('보정 중');model=null;baseline=null;
     cal={phase:'train',index:0,start:performance.now(),samples:[],validation:[],bucket:[],reports:[],poseReference:null,waiting:false};
-    $('#diagnostics').hidden=true;$('#retry-point').hidden=true;
+    diagnosticSummary='';$('#diagnostics').hidden=true;$('#copy-status').textContent='';$('#diagnostic-copy').value='';$('#diagnostic-copy').hidden=true;$('#retry-point').hidden=true;
     $('.calibration').style.display='block';render();
   }
   function pausePoint(reason){
@@ -80,6 +81,8 @@ export function createReader({demo=false,onClose=()=>{},onCamera=()=>{},onMode=(
     $('#cal-quality').textContent='이 점의 표본은 아직 학습에 넣지 않았습니다. 준비되면 다시 측정하세요.';
   }
   function showDiagnostics(result,reports){
+    diagnosticSummary=formatCalibrationSummary(result,reports);
+    $('#copy-status').textContent='';$('#diagnostic-copy').hidden=true;
     $('#diagnostics').hidden=false;$('#diagnostics').open=!result.ok;
     const percent=v=>Number.isFinite(v)?`${(v*100).toFixed(1)}%`:'측정 불가';
     const regions=result.regions.map((v,i)=>`${['위','중앙','아래'][i]} ${Math.round(v*100)}%`).join(' / ');
@@ -135,6 +138,20 @@ export function createReader({demo=false,onClose=()=>{},onCamera=()=>{},onMode=(
       showDiagnostics(result,reports);
     }
   }
+  listen($('#copy-diagnostics'),'click',async()=>{
+    if(!diagnosticSummary)return;
+    const summary=diagnosticSummary;
+    try{
+      if(!navigator.clipboard?.writeText)throw new Error('clipboard unavailable');
+      await navigator.clipboard.writeText(summary);
+      if(closed||diagnosticSummary!==summary)return;
+      $('#copy-status').textContent='진단 요약을 복사했습니다. 원하는 곳에 직접 붙여 넣으세요.';
+    }catch{
+      if(closed||diagnosticSummary!==summary)return;
+      const field=$('#diagnostic-copy');field.hidden=false;field.value=summary;field.focus();field.select();
+      $('#copy-status').textContent='자동 복사가 지원되지 않습니다. 아래 텍스트를 직접 복사하세요.';
+    }
+  });
   listen($('#retry-point'),'click',()=>{
     if(!cal)return;
     if(!lastSample?.valid||performance.now()-lastReceived>300){$('#cal-text').textContent='유효한 카메라 입력이 없습니다. 먼저 카메라 창과 얼굴 위치를 확인하세요.';return;}
@@ -169,6 +186,6 @@ export function createReader({demo=false,onClose=()=>{},onCamera=()=>{},onMode=(
       else if(now-lastReceived>300)pause('카메라 입력 지연 · 정지');
     }
   },50);
-  function close(){if(closed)return;closed=true;clearInterval(timer);listeners.forEach(fn=>fn());model=null;lastSample=null;host.remove();onClose();}
+  function close(){if(closed)return;closed=true;clearInterval(timer);listeners.forEach(fn=>fn());model=null;lastSample=null;diagnosticSummary='';host.remove();onClose();}
   return {receive,pause,close,status,get source(){return source;}};
 }

@@ -6,6 +6,7 @@ import Combine
 /// No rendering surface, recording, analytics, network client or web message bridge.
 final class FaceTracker: NSObject, ObservableObject, ARSessionDelegate {
     struct Sample {
+        let blinking: Bool
         let faceID: UUID
         let signal: Double
         let head: simd_float4x4
@@ -54,13 +55,13 @@ final class FaceTracker: NSObject, ObservableObject, ARSessionDelegate {
         lastTime = frame.timestamp
         guard case .normal = frame.camera.trackingState else { onSample?(nil); return }
         let faces = frame.anchors.compactMap { $0 as? ARFaceAnchor }
-        guard faces.count == 1, let face = faces.first, face.isTracked,
-              (face.blendShapes[.eyeBlinkLeft]?.doubleValue ?? 1) < 0.55,
-              (face.blendShapes[.eyeBlinkRight]?.doubleValue ?? 1) < 0.55 else { onSample?(nil); return }
+        guard faces.count == 1, let face = faces.first, face.isTracked else { onSample?(nil); return }
+        let blinking = (face.blendShapes[.eyeBlinkLeft]?.doubleValue ?? 1) >= 0.55 ||
+                       (face.blendShapes[.eyeBlinkRight]?.doubleValue ?? 1) >= 0.55
         let p = face.lookAtPoint
         guard p.x.isFinite, p.y.isFinite, p.z.isFinite, abs(p.z) > 0.001 else { onSample?(nil); return }
         let relative = simd_mul(simd_inverse(frame.camera.transform), face.transform)
-        onSample?(Sample(faceID: face.identifier, signal: atan2(Double(p.y), Double(abs(p.z))), head: relative, time: frame.timestamp))
+        onSample?(Sample(blinking: blinking, faceID: face.identifier, signal: atan2(Double(p.y), Double(abs(p.z))), head: relative, time: frame.timestamp))
     }
     func sessionWasInterrupted(_ session: ARSession) { stop(); status = "카메라 중단 · 직접 다시 시작하세요" }
     func session(_ session: ARSession, didFailWithError error: Error) { stop(); status = "추적 오류 · 카메라를 다시 시작하세요" }

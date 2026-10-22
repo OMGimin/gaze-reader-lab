@@ -19,6 +19,7 @@ final class ReaderModel: NSObject, ObservableObject, WKNavigationDelegate, WKUID
     private var calibratedFace: UUID?
     private var calibration: VerticalCalibration?
     private var gate = DwellGate()
+    private var blinkSince: Double?
     private var lastSample: Double?
     private var watchdog: Timer?
     private var viewport: CGSize = .zero
@@ -54,7 +55,7 @@ final class ReaderModel: NSObject, ObservableObject, WKNavigationDelegate, WKUID
         groups = Array(repeating: [], count: 6)
     }
     func pause(_ reason: String = "일시 정지 · 다시 시작하려면 버튼을 누르세요") {
-        active = false; gate.reset(); message = reason
+        active = false; gate.reset(); blinkSince = nil; message = reason
         webView.scrollView.setContentOffset(webView.scrollView.contentOffset, animated: false)
     }
     func resize(_ size: CGSize) {
@@ -90,6 +91,16 @@ final class ReaderModel: NSObject, ObservableObject, WKNavigationDelegate, WKUID
                 invalidate("얼굴 위치가 바뀌었습니다 · 다시 보정하세요"); return
             }
         }
+        if sample.blinking {
+            gate.reset()
+            if collecting { settledAt = nil; groups[step] = [] }
+            if active {
+                blinkSince = blinkSince ?? sample.time
+                if sample.time - (blinkSince ?? sample.time) >= 0.25 { pause("눈 감김 지속 · 다시 시작하세요") }
+            }
+            return
+        }
+        blinkSince = nil
         if collecting {
             if baseline == nil { baseline = sample.head; calibratedFace = sample.faceID }
             if settledAt == nil { settledAt = sample.time; message = "\(step < 3 ? "보정" : "별도 검증") \(step % 3 + 1)/3 · 점 응시" }

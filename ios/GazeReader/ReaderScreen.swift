@@ -74,7 +74,7 @@ struct ReaderScreen: View {
             }
         }.padding(.horizontal, 10)
             .onChange(of: editing) { _, value in if value { model.pause("주소 입력 중 · 자동 이동 정지") } }
-            .onChange(of: phase) { _, value in if value != .active { model.tracker.stop() } }
+            .onChange(of: phase) { _, value in if value == .background || (value == .inactive && model.tracker.running) { model.tracker.stop() } }
             .onDisappear { model.tracker.stop() }
             .sheet(isPresented: $privacy) {
                 NavigationStack {

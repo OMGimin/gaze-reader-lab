@@ -18,3 +18,10 @@ vendor/*.onnx
 credentials*.json
 docs/TASK-RECORD.md
 docs/verified-artifact.json
+# Apple signing/local account data must never be committed.
+ios/*.xcodeproj/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.mobileprovision
+*.p12

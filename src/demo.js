@@ -12,3 +12,6 @@ document.querySelector('#start-camera').addEventListener('click',()=>tracker.sta
 document.querySelector('#stop-camera').addEventListener('click',()=>tracker.stop());
 document.querySelector('#hide-camera').addEventListener('click',()=>{tracker.stop();camera.hidden=true;});
 window.addEventListener('pagehide',()=>tracker.destroy());
+// BFCache may restore this document after pagehide destroyed the tracker.
+// Reload to create a fresh, camera-off session; never auto-restart capture.
+window.addEventListener('pageshow',event=>{if(event.persisted)location.reload();});

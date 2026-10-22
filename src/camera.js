@@ -11,3 +11,5 @@ document.querySelector('#check-model').addEventListener('click',async()=>{try{co
 port?.onMessage.addListener(message=>{if(message.type==='stop'){connected=false;sessionClosed=true;tracker.stop('읽기 페이지 연결 종료');start.disabled=true;}});
 port?.onDisconnect.addListener(()=>{connected=false;sessionClosed=true;tracker.stop('확장 연결 끊김');start.disabled=true;});
 window.addEventListener('pagehide',()=>tracker.destroy());
+// Reconnect a restored document with a new tracker, still requiring explicit Start.
+window.addEventListener('pageshow',event=>{if(event.persisted)location.reload();});

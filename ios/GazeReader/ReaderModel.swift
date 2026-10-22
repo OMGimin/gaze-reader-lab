@@ -150,6 +150,13 @@ final class ReaderModel: NSObject, ObservableObject, WKNavigationDelegate, WKUID
         }
         invalidate("페이지 이동 · 다시 보정하세요"); pageReady = false; decisionHandler(.allow)
     }
+    func webView(_ webView: WKWebView, decidePolicyFor response: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+        guard !response.isForMainFrame || (response.response.url.map(ReaderPolicy.allows) ?? false) else {
+            pageReady = false; invalidate("허용되지 않은 페이지로의 이동을 차단했습니다")
+            decisionHandler(.cancel); return
+        }
+        decisionHandler(.allow)
+    }
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         pageReady = false; invalidate("페이지 불러오는 중")
     }

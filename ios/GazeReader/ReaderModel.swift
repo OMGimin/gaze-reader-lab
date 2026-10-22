@@ -115,7 +115,8 @@ final class ReaderModel: NSObject, ObservableObject, WKNavigationDelegate, WKUID
             return
         }
         guard active, let calibration, pageReady, ReaderPolicy.isEpisode(webView.url) else { return }
-        if let direction = gate.update(calibration.zone(sample.signal), at: sample.time) {
+        guard calibration.position(sample.signal) != nil else { pause("시선이 유효 범위를 벗어났습니다 · 다시 시작하세요"); return }
+        if let direction = gate.update(calibration.zone(sample.signal), at: sample.time, validTransit: true) {
             let scroll = webView.scrollView
             guard !scroll.isDragging, !scroll.isDecelerating else { pause(); return }
             let minimum = -scroll.adjustedContentInset.top

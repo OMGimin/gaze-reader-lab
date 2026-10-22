@@ -51,6 +51,19 @@ final class GazeMathTests: XCTestCase {
         _ = gate.update(nil, at: 0.6)
         XCTAssertFalse(gate.armed)
     }
+    func testValidShortTransitPreservesIntentButLongTransitDoesNot() {
+        var gate = DwellGate()
+        for i in 0...5 { _ = gate.update(.neutral, at: Double(i) * 0.1) }
+        _ = gate.update(nil, at: 0.6, validTransit: true)
+        XCTAssertTrue(gate.armed)
+        var actions = 0
+        for i in 7...20 { if gate.update(.down, at: Double(i) * 0.1) != nil { actions += 1 } }
+        XCTAssertEqual(actions, 1)
+        gate.reset()
+        for i in 0...5 { _ = gate.update(.neutral, at: Double(i) * 0.1) }
+        for i in 6...13 { _ = gate.update(nil, at: Double(i) * 0.1, validTransit: true) }
+        XCTAssertFalse(gate.armed)
+    }
     func testNavigationUsesExactHTTPSHostsAndEpisodePath() throws {
         XCTAssertTrue(ReaderPolicy.allows(try XCTUnwrap(URL(string: "https://comic.naver.com/webtoon/weekday"))))
         XCTAssertTrue(ReaderPolicy.isEpisode(URL(string: "https://m.comic.naver.com/webtoon/detail?titleId=1&no=1")))

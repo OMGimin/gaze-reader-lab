@@ -46,12 +46,21 @@ struct DwellGate {
     private var zone: GazeZone?
     private var since: TimeInterval = 0
     private var last: TimeInterval?
-    mutating func reset() { armed = false; zone = nil; last = nil; since = 0 }
-    mutating func update(_ next: GazeZone?, at now: TimeInterval) -> GazeZone? {
+    private var transitSince: TimeInterval?
+    mutating func reset() { armed = false; zone = nil; last = nil; since = 0; transitSince = nil }
+    mutating func update(_ next: GazeZone?, at now: TimeInterval, validTransit: Bool = false) -> GazeZone? {
         guard now.isFinite else { reset(); return nil }
         if let last, now < last || now - last > 0.35 { reset() }
         last = now
-        guard let next else { armed = false; zone = nil; return nil }
+        guard let next else {
+            zone = nil
+            if validTransit {
+                transitSince = transitSince ?? now
+                if now - (transitSince ?? now) > 0.5 { armed = false }
+            } else { armed = false; transitSince = nil }
+            return nil
+        }
+        transitSince = nil
         if next != zone { zone = next; since = now }
         if next == .neutral && now - since >= 0.35 { armed = true }
         if next != .neutral && armed && now - since >= 0.9 {
